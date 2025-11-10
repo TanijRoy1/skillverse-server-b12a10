@@ -2,21 +2,40 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
+const admin = require("firebase-admin");
+const serviceAccount = require("./skillverse-firebase-adminsdk.json");
 const app = express();
 const port = process.env.PORT || 3000;
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+const verifyFirebaseToken = async (req, res, next) => {
+  if (!req.headers.authorization) {
+    return res.status(401).send({ message: "Unauthorized access" });
+  }
+  const token = req.headers.authorization.split(" ")[1];
+  try {
+    const userInfo = await admin.auth().verifyIdToken(token);
+    req.token_email = userInfo.email;
+    next();
+  } catch (error) {
+    return res.status(401).send({ message: "Unauthorized access" });
+  }
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.z1gnsog.mongodb.net/?appName=Cluster0`;
 const client = new MongoClient(uri, {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-    },
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
 });
 
 app.get("/", (req, res) => {
@@ -36,18 +55,17 @@ async function run() {
       res.send(result);
     });
     app.get("/popularCourses", async (req, res) => {
-      const query = {isFeatured : true};
+      const query = { isFeatured: true };
       const cursor = courseCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
     });
-    app.get("/courses/:id", async (req, res) => {
+    app.get("/courses/:id", verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
-      const query = {_id : new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await courseCollection.findOne(query);
       res.send(result);
-    })
-    
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
