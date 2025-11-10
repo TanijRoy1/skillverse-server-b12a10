@@ -66,6 +66,13 @@ async function run() {
       const result = await courseCollection.findOne(query);
       res.send(result);
     });
+    app.get("/filteredCourses", async (req, res) => {
+      const category = req.query.category;
+      const query = {category : category}
+      const cursor = courseCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
