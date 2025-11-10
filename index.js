@@ -35,12 +35,19 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
+    app.get("/popularCourses", async (req, res) => {
+      const query = {isFeatured : true};
+      const cursor = courseCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
     app.get("/courses/:id", async (req, res) => {
       const id = req.params.id;
       const query = {_id : new ObjectId(id)};
       const result = await courseCollection.findOne(query);
       res.send(result);
     })
+    
 
     await client.db("admin").command({ ping: 1 });
     console.log(
