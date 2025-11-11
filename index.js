@@ -56,7 +56,7 @@ async function run() {
     });
     app.get("/popularCourses", async (req, res) => {
       const query = { isFeatured: true };
-      const cursor = courseCollection.find(query);
+      const cursor = courseCollection.find(query).limit(6);
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -73,6 +73,11 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
+    app.post("/courses", async (req, res) => {
+      const newCourse = req.body;
+      const result = await courseCollection.insertOne(newCourse);
+      res.send(result);
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log(
