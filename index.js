@@ -48,6 +48,7 @@ async function run() {
 
     const coursesDB = client.db("coursesDB");
     const courseCollection = coursesDB.collection("courses");
+    const enrolledCollection = coursesDB.collection("enrolled");
 
     app.get("/courses", async (req, res) => {
       const cursor = courseCollection.find();
@@ -68,7 +69,7 @@ async function run() {
     });
     app.get("/filteredCourses", async (req, res) => {
       const category = req.query.category;
-      const query = {category : category}
+      const query = { category: category };
       const cursor = courseCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
@@ -77,35 +78,73 @@ async function run() {
       const newCourse = req.body;
       const result = await courseCollection.insertOne(newCourse);
       res.send(result);
-    })
+    });
     app.patch("/courses/:id", async (req, res) => {
       const id = req.params.id;
       const updatedCourse = req.body;
-      const query = {_id : new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const update = {
-        $set : {
-          title : updatedCourse.title,
-          image : updatedCourse.image,
-          price : updatedCourse.price,
-          duration : updatedCourse.duration,
-          category : updatedCourse.category,
-          description : updatedCourse.description,
-          isFeatured : updatedCourse.isFeatured,
-        }
-      }
+        $set: {
+          title: updatedCourse.title,
+          image: updatedCourse.image,
+          price: updatedCourse.price,
+          duration: updatedCourse.duration,
+          category: updatedCourse.category,
+          description: updatedCourse.description,
+          isFeatured: updatedCourse.isFeatured,
+        },
+      };
       const result = await courseCollection.updateOne(query, update);
       res.send(result);
-    })
+    });
     app.get("/myCourses", verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
       const query = {};
-      if(email){
-        if(req.token_email !== email){
-          return res.status(403).send({message : "Forbidden Access"});
+      if (email) {
+        if (req.token_email !== email) {
+          return res.status(403).send({ message: "Forbidden Access" });
         }
         query.added_by = email;
       }
       const cursor = courseCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    app.post(
+      "/myEnrolledCourses/:id",
+      verifyFirebaseToken,
+      async (req, res) => {
+        const enrolledCourse = req.body;
+        const existingCourse = await enrolledCollection.findOne({courseId : enrolledCourse.courseId});
+        if(existingCourse){
+          return res.send({message : "You’re already enrolled in this course — no need to enroll again."});
+        }
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const update = {
+          $inc: {
+            enrollment: 1,
+          },
+        };
+        const updatedenrollment = await courseCollection.updateOne(
+          query,
+          update
+        );
+
+        const result = await enrolledCollection.insertOne(enrolledCourse);
+        res.send(result);
+      }
+    );
+    app.get("/myEnrolledCourses", verifyFirebaseToken, async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if(email){
+        if (req.token_email !== email) {
+          return res.status(403).send({ message: "Forbidden Access" });
+        }
+        query.enrolled_by = email;
+      }
+      const cursor = enrolledCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
     })
