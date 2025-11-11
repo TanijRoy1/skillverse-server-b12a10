@@ -96,6 +96,19 @@ async function run() {
       const result = await courseCollection.updateOne(query, update);
       res.send(result);
     })
+    app.get("/myCourses", verifyFirebaseToken, async (req, res) => {
+      const email = req.query.email;
+      const query = {};
+      if(email){
+        if(req.token_email !== email){
+          return res.status(403).send({message : "Forbidden Access"});
+        }
+        query.added_by = email;
+      }
+      const cursor = courseCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log(
