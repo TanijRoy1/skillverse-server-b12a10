@@ -78,6 +78,24 @@ async function run() {
       const result = await courseCollection.insertOne(newCourse);
       res.send(result);
     })
+    app.patch("/courses/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedCourse = req.body;
+      const query = {_id : new ObjectId(id)};
+      const update = {
+        $set : {
+          title : updatedCourse.title,
+          image : updatedCourse.image,
+          price : updatedCourse.price,
+          duration : updatedCourse.duration,
+          category : updatedCourse.category,
+          description : updatedCourse.description,
+          isFeatured : updatedCourse.isFeatured,
+        }
+      }
+      const result = await courseCollection.updateOne(query, update);
+      res.send(result);
+    })
 
     await client.db("admin").command({ ping: 1 });
     console.log(
