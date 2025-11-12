@@ -49,6 +49,7 @@ async function run() {
     const coursesDB = client.db("coursesDB");
     const courseCollection = coursesDB.collection("courses");
     const enrolledCollection = coursesDB.collection("enrolled");
+    const reviewCollection = coursesDB.collection("reviews");
 
     app.get("/courses", async (req, res) => {
       const cursor = courseCollection.find();
@@ -158,6 +159,18 @@ async function run() {
       const id = req.params.id;
       const query = {_id : new ObjectId(id)};
       const result = await enrolledCollection.deleteOne(query);
+      res.send(result);
+    })
+    app.post("/reviews", verifyFirebaseToken, async (req, res) => {
+      const review = req.body;
+      const result = await reviewCollection.insertOne(review);
+      res.send(result);
+    })
+    app.get("/reviews/:courseId", verifyFirebaseToken, async (req, res) => {
+      const courseId = req.params.courseId;
+      const query = {courseId : courseId};
+      const cursor = reviewCollection.find(query);
+      const result = await cursor.toArray();
       res.send(result);
     })
 
