@@ -61,7 +61,7 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
-    app.get("/courses/:id", verifyFirebaseToken, async (req, res) => {
+    app.get("/courses/:id",verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await courseCollection.findOne(query);
@@ -104,7 +104,7 @@ async function run() {
         if (req.token_email !== email) {
           return res.status(403).send({ message: "Forbidden Access" });
         }
-        query.added_by = email;
+        query.instructorEmail = email;
       }
       const cursor = courseCollection.find(query);
       const result = await cursor.toArray();
@@ -146,6 +146,18 @@ async function run() {
       }
       const cursor = enrolledCollection.find(query);
       const result = await cursor.toArray();
+      res.send(result);
+    })
+    app.delete("/myCourses/:id", verifyFirebaseToken, async (req, res) => {
+      const id = req.params.id;
+      const query = {_id : new ObjectId(id)};
+      const result = await courseCollection.deleteOne(query);
+      res.send(result);
+    })
+    app.delete("/myEnrolledCourses/:id", verifyFirebaseToken, async (req, res) => {
+      const id = req.params.id;
+      const query = {_id : new ObjectId(id)};
+      const result = await enrolledCollection.deleteOne(query);
       res.send(result);
     })
 
