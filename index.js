@@ -3,9 +3,11 @@ const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const admin = require("firebase-admin");
-const serviceAccount = require("./skillverse-firebase-adminsdk.json");
 const app = express();
 const port = process.env.PORT || 3000;
+
+const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
+const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -44,7 +46,7 @@ app.get("/", (req, res) => {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const coursesDB = client.db("coursesDB");
     const courseCollection = coursesDB.collection("courses");
@@ -174,7 +176,7 @@ async function run() {
       res.send(result);
     })
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "✅ Pinged your deployment. Yor are successfully connected to MongoDB!"
     );
