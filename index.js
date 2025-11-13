@@ -77,12 +77,12 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
-    app.post("/courses", async (req, res) => {
+    app.post("/courses", verifyFirebaseToken, async (req, res) => {
       const newCourse = req.body;
       const result = await courseCollection.insertOne(newCourse);
       res.send(result);
     });
-    app.patch("/courses/:id", async (req, res) => {
+    app.patch("/courses/:id", verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
       const updatedCourse = req.body;
       const query = { _id: new ObjectId(id) };
@@ -118,7 +118,10 @@ async function run() {
       verifyFirebaseToken,
       async (req, res) => {
         const enrolledCourse = req.body;
-        const existingCourse = await enrolledCollection.findOne({courseId : enrolledCourse.courseId});
+        const existingCourse = await enrolledCollection.findOne({
+          courseId : enrolledCourse.courseId,
+          enrolled_by : enrolledCourse.enrolled_by
+        });
         if(existingCourse){
           return res.send({message : "You’re already enrolled in this course — no need to enroll again."});
         }
