@@ -6,7 +6,10 @@ const admin = require("firebase-admin");
 const app = express();
 const port = process.env.PORT || 3000;
 
-const decoded = Buffer.from(process.env.FIREBASE_SERVICE_KEY, "base64").toString("utf8");
+const decoded = Buffer.from(
+  process.env.FIREBASE_SERVICE_KEY,
+  "base64"
+).toString("utf8");
 const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
@@ -52,19 +55,40 @@ async function run() {
     const courseCollection = coursesDB.collection("courses");
     const enrolledCollection = coursesDB.collection("enrolled");
     const reviewCollection = coursesDB.collection("reviews");
+    const usersCollection = coursesDB.collection("users");
 
     app.get("/courses", async (req, res) => {
-      const cursor = courseCollection.find();
-      const result = await cursor.toArray();
-      res.send(result);
+      const { limit = 0, skip = 0, search = "", sort = "" } = req.query;
+
+      const query = {};
+      if (search) {
+        query.title = { $regex: search, $options: "i" };
+      }
+
+      let sortOption = {};
+      if (sort === "price_asc") {
+        sortOption.price = 1;
+      } else if (sort === "price_desc") {
+        sortOption.price = -1;
+      }
+
+      const count = await courseCollection.countDocuments(query);
+
+      const cursor = courseCollection
+        .find(query)
+        .sort(sortOption)
+        .limit(Number(limit))
+        .skip(Number(skip));
+      const courses = await cursor.toArray();
+      res.send({ courses, count });
     });
     app.get("/popularCourses", async (req, res) => {
       const query = { isFeatured: true };
-      const cursor = courseCollection.find(query).limit(6);
+      const cursor = courseCollection.find(query).limit(8);
       const result = await cursor.toArray();
       res.send(result);
     });
-    app.get("/courses/:id",verifyFirebaseToken, async (req, res) => {
+    app.get("/courses/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await courseCollection.findOne(query);
@@ -119,11 +143,14 @@ async function run() {
       async (req, res) => {
         const enrolledCourse = req.body;
         const existingCourse = await enrolledCollection.findOne({
-          courseId : enrolledCourse.courseId,
-          enrolled_by : enrolledCourse.enrolled_by
+          courseId: enrolledCourse.courseId,
+          enrolled_by: enrolledCourse.enrolled_by,
         });
-        if(existingCourse){
-          return res.send({message : "You’re already enrolled in this course — no need to enroll again."});
+        if (existingCourse) {
+          return res.send({
+            message:
+              "You’re already enrolled in this course — no need to enroll again.",
+          });
         }
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
@@ -144,7 +171,7 @@ async function run() {
     app.get("/myEnrolledCourses", verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
       const query = {};
-      if(email){
+      if (email) {
         if (req.token_email !== email) {
           return res.status(403).send({ message: "Forbidden Access" });
         }
@@ -153,31 +180,68 @@ async function run() {
       const cursor = enrolledCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
-    })
+    });
     app.delete("/myCourses/:id", verifyFirebaseToken, async (req, res) => {
       const id = req.params.id;
-      const query = {_id : new ObjectId(id)};
+      const query = { _id: new ObjectId(id) };
       const result = await courseCollection.deleteOne(query);
       res.send(result);
-    })
-    app.delete("/myEnrolledCourses/:id", verifyFirebaseToken, async (req, res) => {
-      const id = req.params.id;
-      const query = {_id : new ObjectId(id)};
-      const result = await enrolledCollection.deleteOne(query);
-      res.send(result);
-    })
+    });
+    app.delete(
+      "/myEnrolledCourses/:id",
+      verifyFirebaseToken,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await enrolledCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
     app.post("/reviews", verifyFirebaseToken, async (req, res) => {
       const review = req.body;
       const result = await reviewCollection.insertOne(review);
       res.send(result);
-    })
-    app.get("/reviews/:courseId", verifyFirebaseToken, async (req, res) => {
+    });
+    app.get("/reviews/:courseId", async (req, res) => {
       const courseId = req.params.courseId;
-      const query = {courseId : courseId};
+      const query = { courseId: courseId };
       const cursor = reviewCollection.find(query);
       const result = await cursor.toArray();
       res.send(result);
-    })
+    });
+
+    // user related apis
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      user.createdAt = new Date();
+
+      const userExist = await usersCollection.findOne({ email: user.email });
+      if (userExist) {
+        return res.send({ message: "User Already Exist" });
+      }
+
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+    app.get("/users/:email", verifyFirebaseToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    });
+    app.patch("/users/:id", verifyFirebaseToken, async (req, res) => {
+      const id = req.params.id;
+      const updatedUser = req.body;
+      const query = { _id: new ObjectId(id) };
+      const update = {
+        $set: {
+          displayName: updatedUser.displayName,
+          photoURL: updatedUser.photoURL,
+        },
+      };
+      const result = await usersCollection.updateOne(query, update);
+      res.send(result);
+    });
 
     // await client.db("admin").command({ ping: 1 });
     console.log(
